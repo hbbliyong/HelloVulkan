@@ -1,0 +1,9 @@
+{
+  "name":"vulkan",
+  "version":"0.0.1",
+  "description":"learn the vulkan",
+  "dependencies": [
+    "glm",
+    "glfw3"
+  ]
+}

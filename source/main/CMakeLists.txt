@@ -1,0 +1,62 @@
+##设置库名称
+set(LIBRARY_TARGET_NAME "main")
+
+##设置源代码路径
+set(${LIBRARY_TARGET_NAME}_SOURCE_DIR "${PROJECT_SOURCE_DIR}/${LIBRARY_TARGET_NAME}/src")
+
+##设置头文件路径
+set(${LIBRARY_TARGET_NAME}_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/${LIBRARY_TARGET_NAME}/src")
+message(${${LIBRARY_TARGET_NAME}_INCLUDE_DIR})
+##提取src文件夹中的所有头文件
+file(GLOB_RECURSE  ${LIBRARY_TARGET_NAME}_SRC_HEADER_FILES
+    LIST_DIRECTORIES False 
+    "${${LIBRARY_TARGET_NAME}_SOURCE_DIR}/*.h*"
+)
+
+##提取include文件夹中的所有头文件
+file(GLOB_RECURSE  ${LIBRARY_TARGET_NAME}_INCLUDE_HEADER_FILES
+    LIST_DIRECTORIES False 
+    "${${LIBRARY_TARGET_NAME}_INCLUDE_DIR}/*.h*"
+)
+
+
+##为VS设置头文件文件夹
+source_group(
+    TREE "${${LIBRARY_TARGET_NAME}_SOURCE_DIR}"
+    PREFIX "Header Files" 
+    FILES ${${LIBRARY_TARGET_NAME}_SRC_HEADER_FILES} 
+)
+source_group(
+    TREE "${${LIBRARY_TARGET_NAME}_INCLUDE_DIR}"
+    PREFIX "Header Files" 
+    FILES ${${LIBRARY_TARGET_NAME}_INCLUDE_HEADER_FILES} 
+)
+
+##提取src文件夹中的所有源文件
+file(GLOB_RECURSE  ${LIBRARY_TARGET_NAME}_SRC_FILES
+    LIST_DIRECTORIES False 
+    "${${LIBRARY_TARGET_NAME}_SOURCE_DIR}/*.c*"
+)
+
+add_executable(${LIBRARY_TARGET_NAME}
+
+    ${${LIBRARY_TARGET_NAME}_SRC_FILES}
+    ${${LIBRARY_TARGET_NAME}_INCLUDE_HEADER_FILES}
+
+)
+
+target_include_directories(
+    ${LIBRARY_TARGET_NAME}
+    PRIVATE  
+    ${${LIBRARY_TARGET_NAME}_SOURCE_DIR}
+)
+
+
+find_package(Vulkan REQUIRED)
+find_package(glfw3  CONFIG REQUIRED)
+
+
+target_link_libraries(${LIBRARY_TARGET_NAME}
+    PRIVATE glfw
+    PRIVATE Vulkan::Vulkan
+)
