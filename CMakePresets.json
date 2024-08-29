@@ -7,8 +7,8 @@
             "description": "Using compilers for Visual Studio 17 2022 (x64 architecture)",
             "generator": "Visual Studio 17 2022",
             "toolset": "host=x64",
-            "architecture": "x64",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "architecture": "x64",         
+             "binaryDir": "${sourceDir}/build/",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CMAKE_C_COMPILER": "cl.exe",

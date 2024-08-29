@@ -1,0 +1,2 @@
+cmake  "-DCMAKE_INSTALL_PREFIX=F:/002workcode/HelloVulkan/out/install/Visual Studio Community 2022 Release - amd64" -DCMAKE_TOOLCHAIN_FILE=F:/002workcode/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe -SF:/002workcode/HelloVulkan "-BF:/002workcode/HelloVulkan/out/build/Visual Studio Community 2022 Release - amd64" -G "Visual Studio 17 2022" -T host=x64 -A x64 
+pause

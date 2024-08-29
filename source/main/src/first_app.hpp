@@ -8,7 +8,7 @@
 #include "iostream"
 #include <fstream>
 #include "log.h"
-
+#include "glm/glm.hpp"
 static constexpr int WIDTH = 800;
 static constexpr int HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -69,6 +69,25 @@ namespace lve {
 		std::vector<VkSurfaceFormatKHR> formats;
 		std::vector<VkPresentModeKHR> presentModes;
 	};
+
+	struct Vertex
+	{
+		glm::vec2 pos;
+		glm::vec3 color;
+	};
+
+	//const std::vector<Vertex> vertices = {
+	//	{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+	//	{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+	//	{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+	//};
+	const std::vector<Vertex> vertices = {
+		{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+	};
+
+
 	class FirstApp {
 	public:
 
@@ -91,6 +110,7 @@ namespace lve {
 		void createRenderPass();
 		void createFramebuffers();
 		void createCommandPool();
+		void createVertexBuffer();
 		void createCommandBuffers();
 		void createSyncObjects();
 		void drawFrame();
@@ -107,9 +127,9 @@ namespace lve {
 		VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 		VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> availablePresentModes);
 		VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
-
+		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags porperties);
 	public:
-
+		bool framebufferResized = false;
 	private:
 		VkInstance instance;
 		LveWindow* lveWindow;
@@ -134,5 +154,7 @@ namespace lve {
 		std::vector<VkSemaphore> renderFinishedSemaphores;
 		std::vector<VkFence> inFlightFences;
 		size_t currentFrame = 0;
+		VkBuffer vertexBuffer;
+		VkDeviceMemory vertexBufferMemory;
 	};
 }
