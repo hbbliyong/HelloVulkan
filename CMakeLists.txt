@@ -22,7 +22,9 @@ endif()
  message("${CMAKE_TOOLCHAIN_FILE}")
 # message("$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 ##源代码位置
-
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../../build/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Bin")
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../build/RELEASE")
 set(PROJECT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 add_subdirectory ("source/main")

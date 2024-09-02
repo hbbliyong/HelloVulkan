@@ -81,10 +81,19 @@ namespace lve {
 	//	{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 	//	{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
 	//};
-	const std::vector<Vertex> vertices = {
+	/*const std::vector<Vertex> vertices = {
 		{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
 		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+	};*/
+	const std::vector<Vertex> vertices = {
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+	};
+	const std::vector<uint16_t> indices = {
+				0, 1, 2, 2, 3, 0
 	};
 
 
@@ -110,7 +119,16 @@ namespace lve {
 		void createRenderPass();
 		void createFramebuffers();
 		void createCommandPool();
+		void createBuffer(VkDeviceSize size,VkBufferUsageFlags usage,VkMemoryPropertyFlags propertices,VkBuffer& buffer,VkDeviceMemory& bufferMemory);
+		/// <summary>
+		/// 缓冲之间复制对象
+		/// </summary>
+		/// <param name="srcBuffer"></param>
+		/// <param name="destBuffer"></param>
+		/// <param name="size"></param>
+		void copyBuffer(VkBuffer srcBuffer, VkBuffer destBuffer, VkDeviceSize size);
 		void createVertexBuffer();
+		void createIndexBuffer();
 		void createCommandBuffers();
 		void createSyncObjects();
 		void drawFrame();
@@ -156,5 +174,8 @@ namespace lve {
 		size_t currentFrame = 0;
 		VkBuffer vertexBuffer;
 		VkDeviceMemory vertexBufferMemory;
+		VkBuffer indexBuffer;
+		VkDeviceMemory indexBufferMemory;
+
 	};
 }
