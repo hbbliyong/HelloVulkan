@@ -2,6 +2,10 @@
 #include <set>
 #include <algorithm>
 #include <filesystem>
+#include <chrono>
+
+#define GLM_FORCE_RADIANS
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace fs = std::filesystem;
 namespace lve {
@@ -45,11 +49,13 @@ namespace lve {
 		createSwapChain();
 		createImageViews();
 		createRenderPass();
+		createDescriptorSetLayout();
 		createGraphicsPipeline();
 		createFramebuffers();
 		createCommandPool();
 		createVertexBuffer();
 		createIndexBuffer();
+		createUniformBuffer();
 		createCommandBuffers();
 		createSyncObjects();
 	}
@@ -60,17 +66,22 @@ namespace lve {
 	}
 	void FirstApp::initWindow()
 	{
-		lveWindow = new LveWindow{ WIDTH, HEIGHT, "Hello Vulkan!" };
-		glfwSetFramebufferSizeCallback(lveWindow->getWindow(), framebufferResizeCallback);
+		glfwInit();
+
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+		glfwSetWindowUserPointer(window, this);
+		glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 	}
 
 	void FirstApp::mainLoop()
 	{
-		while (!lveWindow->shouldClose())
-		{
+		while (!glfwWindowShouldClose(window)) {
 			glfwPollEvents();
 			drawFrame();
 		}
+
 		vkDeviceWaitIdle(device);
 	}
 
@@ -112,7 +123,7 @@ namespace lve {
 			throw std::runtime_error("failed to create instance!");
 		}
 
-		uint32_t extensionCount = 0;
+	/*	uint32_t extensionCount = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 		std::vector<VkExtensionProperties> extensionsProperties(extensionCount);
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionsProperties.data());
@@ -120,7 +131,7 @@ namespace lve {
 		for (const auto& extension : extensionsProperties)
 		{
 			std::cout << std::string("\t") << extension.extensionName << std::endl;
-		}
+		}*/
 
 	}
 
@@ -196,7 +207,7 @@ namespace lve {
 
 	void FirstApp::createSurface()
 	{
-		if (glfwCreateWindowSurface(instance, lveWindow->getWindow(), nullptr, &surface) != VK_SUCCESS)
+		if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to create window surface!");
 		}
@@ -262,9 +273,10 @@ namespace lve {
 	void FirstApp::recreateSwapChain()
 	{
 		int width = 0, height = 0;
+		glfwGetFramebufferSize(window, &width, &height);
 		while (width == 0 || height == 0)
 		{
-			glfwGetFramebufferSize(lveWindow->getWindow(), &width, &height);
+			glfwGetFramebufferSize(window, &width, &height);
 			glfwWaitEvents();
 		}
 		vkDeviceWaitIdle(device);
@@ -273,10 +285,7 @@ namespace lve {
 
 		createSwapChain();
 		createImageViews();
-		createRenderPass();
-		createGraphicsPipeline();
 		createFramebuffers();
-		createCommandBuffers();
 	}
 
 	void FirstApp::createImageViews()
@@ -311,7 +320,7 @@ namespace lve {
 
 	void FirstApp::createGraphicsPipeline()
 	{
-		std::string  fileDirPath("F:/002workcode/littleVulkanEngine1/source/main/shaders");
+		std::string  fileDirPath("F:/002workcode/HelloVulkan/source/main/shaders");
 		std::filesystem::path vertPath(fileDirPath + "/vert.spv");
 		std::filesystem::path fragPath(fileDirPath + "/frag.spv");
 
@@ -536,7 +545,8 @@ namespace lve {
 
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutInfo.setLayoutCount = 0;
+		pipelineLayoutInfo.setLayoutCount = 1;
+		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
 
 		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
@@ -725,6 +735,24 @@ namespace lve {
 		vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 	}
 
+	void FirstApp::createDescriptorSetLayout()
+	{
+		VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+		uboLayoutBinding.binding = 0;
+		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uboLayoutBinding.descriptorCount = 1;
+		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = 1;
+		layoutInfo.pBindings = &uboLayoutBinding;
+
+		if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create descriptor set layout!");
+		}
+	}
+
 	uint32_t FirstApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 		VkPhysicalDeviceMemoryProperties memProperties;
 		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -739,30 +767,48 @@ namespace lve {
 		throw std::runtime_error("failed to find suitable memory type!");
 
 	}
-	void FirstApp::createVertexBuffer()
-	{
+	//void FirstApp::createVertexBuffer()
+	//{
+	//	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+	//	VkBuffer stagingBuffer;
+	//	VkDeviceMemory stagingBufferMemory;
+	//	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+	//		stagingBuffer, stagingBufferMemory);
+
+	//	void* data;
+	//	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	//	memcpy(data, vertices.data(), (size_t)bufferSize);
+	//	vkUnmapMemory(device, stagingBufferMemory);
+
+	//	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+	//		vertexBuffer, vertexBufferMemory);
+
+	//	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+	//	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	//	vkFreeMemory(device, stagingBufferMemory, nullptr);
+	//}
+	void FirstApp::createVertexBuffer() {
 		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			stagingBuffer, stagingBufferMemory);
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
 		void* data;
 		vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
 		memcpy(data, vertices.data(), (size_t)bufferSize);
 		vkUnmapMemory(device, stagingBufferMemory);
 
-		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			vertexBuffer, vertexBufferMemory);
+		createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
 
 		copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
 	}
-
 	void FirstApp::createIndexBuffer()
 	{
 		VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
@@ -786,6 +832,21 @@ namespace lve {
 
 		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		vkFreeMemory(device, stagingBufferMemory, nullptr);
+	}
+
+	void FirstApp::createUniformBuffer()
+	{
+		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+		uniformBuffers.resize(swapChainImages.size());
+		uniformBufferMemory.resize(swapChainImages.size());
+
+		for (size_t i = 0; i < swapChainImages.size(); i++)
+		{
+			createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				uniformBuffers[i],
+				uniformBufferMemory[i]);
+		}
 	}
 
 	void FirstApp::createCommandBuffers()
@@ -873,6 +934,28 @@ namespace lve {
 		}
 	}
 
+	void FirstApp::updateUniformBuffer(uint32_t currentImage)
+	{
+		static auto startTime = std::chrono::high_resolution_clock::now();
+
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+		UniformBufferObject ubo = {};
+		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(.0f, .0f, 1.0f));
+		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+		//GLM库最初是为OpenGL设计的，它的裁剪坐标的Y轴和Vulkan是相反的。
+		// 我们可以通过将投影矩阵的Y轴缩放系数符号取反来使投影矩阵和Vulkan的要求一致。
+		// 如果不这样做，渲染出来的图像会被倒置。
+		ubo.proj[1][1] *= -1;
+
+		void* data;
+		vkMapMemory(device, uniformBufferMemory[currentImage], 0, sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, uniformBufferMemory[currentImage]);
+	}
+
 	void FirstApp::drawFrame()
 	{
 		vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
@@ -901,6 +984,7 @@ namespace lve {
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
+		updateUniformBuffer(imageIndex);
 		//提交指令缓冲
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -965,7 +1049,12 @@ namespace lve {
 	void FirstApp::cleanup()
 	{
 		cleanupSwapChain();
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
+		for (size_t i = 0; i < swapChainImages.size(); i++) {
+			vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+			vkFreeMemory(device, uniformBufferMemory[i], nullptr);
+		}
 		vkDestroyBuffer(device, indexBuffer, nullptr);
 		vkFreeMemory(device, indexBufferMemory, nullptr);
 
@@ -986,8 +1075,11 @@ namespace lve {
 		}
 		vkDestroySurfaceKHR(instance, surface, nullptr);
 		vkDestroyInstance(instance, nullptr);
-		vkDestroyDevice(device, nullptr);
-		delete lveWindow;
+		//vkDestroyDevice(device, nullptr);	
+
+		glfwDestroyWindow(window);
+
+		glfwTerminate();
 	}
 
 	bool FirstApp::checkValidationLayerSupport()
@@ -1182,7 +1274,7 @@ namespace lve {
 		else
 		{
 			int width, height;
-			glfwGetFramebufferSize(lveWindow->getWindow(), &width, &height);
+			glfwGetFramebufferSize(window, &width, &height);
 			VkExtent2D actualExtent = {
 				static_cast<uint32_t>(width),
 				static_cast<uint32_t>(height) };
@@ -1192,5 +1284,4 @@ namespace lve {
 			return actualExtent;
 		}
 	}
-
 }

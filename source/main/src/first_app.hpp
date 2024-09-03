@@ -70,6 +70,12 @@ namespace lve {
 		std::vector<VkPresentModeKHR> presentModes;
 	};
 
+	struct UniformBufferObject {
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
+	};
+
 	struct Vertex
 	{
 		glm::vec2 pos;
@@ -127,10 +133,13 @@ namespace lve {
 		/// <param name="destBuffer"></param>
 		/// <param name="size"></param>
 		void copyBuffer(VkBuffer srcBuffer, VkBuffer destBuffer, VkDeviceSize size);
+		void createDescriptorSetLayout();
 		void createVertexBuffer();
 		void createIndexBuffer();
+		void createUniformBuffer();
 		void createCommandBuffers();
 		void createSyncObjects();
+		void updateUniformBuffer(uint32_t currentImage);
 		void drawFrame();
 		void cleanupSwapChain();
 		void cleanup();
@@ -146,11 +155,12 @@ namespace lve {
 		VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> availablePresentModes);
 		VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags porperties);
+
 	public:
 		bool framebufferResized = false;
 	private:
 		VkInstance instance;
-		LveWindow* lveWindow;
+		GLFWwindow* window;
 		VkDebugUtilsMessengerEXT callback;
 		VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 		VkDevice device;
@@ -163,6 +173,7 @@ namespace lve {
 		VkExtent2D swapChainExtent;
 		std::vector<VkImageView> swapChainImageViews;
 		VkRenderPass renderPass;
+		VkDescriptorSetLayout descriptorSetLayout;
 		VkPipelineLayout pipelineLayout;
 		VkPipeline graphicsPipeline;
 		std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -176,6 +187,9 @@ namespace lve {
 		VkDeviceMemory vertexBufferMemory;
 		VkBuffer indexBuffer;
 		VkDeviceMemory indexBufferMemory;
+
+		std::vector<VkBuffer> uniformBuffers;
+		std::vector<VkDeviceMemory> uniformBufferMemory;
 
 	};
 }
