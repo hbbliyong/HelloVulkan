@@ -125,15 +125,15 @@ namespace lve {
 			throw std::runtime_error("failed to create instance!");
 		}
 
-	/*	uint32_t extensionCount = 0;
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-		std::vector<VkExtensionProperties> extensionsProperties(extensionCount);
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionsProperties.data());
-		std::cout << "availabe extensions:" << std::endl;
-		for (const auto& extension : extensionsProperties)
-		{
-			std::cout << std::string("\t") << extension.extensionName << std::endl;
-		}*/
+		/*	uint32_t extensionCount = 0;
+			vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+			std::vector<VkExtensionProperties> extensionsProperties(extensionCount);
+			vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionsProperties.data());
+			std::cout << "availabe extensions:" << std::endl;
+			for (const auto& extension : extensionsProperties)
+			{
+				std::cout << std::string("\t") << extension.extensionName << std::endl;
+			}*/
 
 	}
 
@@ -473,7 +473,7 @@ namespace lve {
 
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		
+
 		auto bindingDescription = Vertex::getBindingDescription();
 		auto attributeDescriptions = Vertex::getAttributeDescription();
 
@@ -507,10 +507,10 @@ namespace lve {
 		//viewportState.scissorCount = 1;
 		//viewportState.pScissors = &scissor;
 
-			VkPipelineViewportStateCreateInfo viewportState{};
-			viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-			viewportState.viewportCount = 1;
-			viewportState.scissorCount = 1;
+		VkPipelineViewportStateCreateInfo viewportState{};
+		viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportState.viewportCount = 1;
+		viewportState.scissorCount = 1;
 
 		VkPipelineRasterizationStateCreateInfo rasterizer{};
 		rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -555,7 +555,7 @@ namespace lve {
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutInfo.setLayoutCount = 1;
 		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-		pipelineLayoutInfo.pushConstantRangeCount = 0;
+		//pipelineLayoutInfo.pushConstantRangeCount = 0;
 
 		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
@@ -675,7 +675,7 @@ namespace lve {
 		VkCommandPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-		poolInfo.flags = 0;
+		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
 		if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create command pool!");
@@ -862,7 +862,7 @@ namespace lve {
 
 	void FirstApp::createCommandBuffers()
 	{
-		commandBuffers.resize(swapChainFramebuffers.size());
+		commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 		VkCommandBufferAllocateInfo allocInfo = {};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.commandPool = commandPool;
@@ -872,54 +872,62 @@ namespace lve {
 		if (vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
-		for (size_t i = 0; i < commandBuffers.size(); i++)
+	}
+
+	void FirstApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+	{
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		//beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		//beginInfo.pInheritanceInfo = nullptr;//OPTIONAL
+		if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
 		{
-			VkCommandBufferBeginInfo beginInfo = {};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-			beginInfo.pInheritanceInfo = nullptr;//OPTIONAL
-			if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS)
-			{
-				throw std::runtime_error("failed to begin recording command buffer!");
-			}
-
-			VkRenderPassBeginInfo renderPassInfo = {};
-			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-			renderPassInfo.renderPass = renderPass;
-			renderPassInfo.framebuffer = swapChainFramebuffers[i];
-
-			renderPassInfo.renderArea.offset = { 0,0 };
-			renderPassInfo.renderArea.extent = swapChainExtent;
-
-			VkClearValue clearColor = { .0f,.0f,.0f,1.0f };
-			renderPassInfo.clearValueCount = 1;
-			renderPassInfo.pClearValues = &clearColor;
-
-			vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-			VkBuffer vertexBuffers[] = { vertexBuffer };
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
-
-			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
-			VkViewport vps[1] = {
-				{0,0,WIDTH,HEIGHT,0,1}
-			};
-			vkCmdSetViewport(commandBuffers[i], 0, 1, vps);
-			VkRect2D rs[1] = { {{0,0},{WIDTH,HEIGHT}} };
-			vkCmdSetScissor(commandBuffers[i], 0, 1, rs);
-			//vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
-			//vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
-			vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-			vkCmdEndRenderPass(commandBuffers[i]);
-			if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
-				throw std::runtime_error("failed to record command buffer!");
-			}
+			throw std::runtime_error("failed to begin recording command buffer!");
 		}
 
+		VkRenderPassBeginInfo renderPassInfo = {};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassInfo.renderPass = renderPass;
+		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
 
+		renderPassInfo.renderArea.offset = { 0,0 };
+		renderPassInfo.renderArea.extent = swapChainExtent;
+
+		VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+		renderPassInfo.clearValueCount = 1;
+		renderPassInfo.pClearValues = &clearColor;
+
+		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = (float)swapChainExtent.width;
+		viewport.height = (float)swapChainExtent.height;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = swapChainExtent;
+		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+		VkBuffer vertexBuffers[] = { vertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+		//vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+		//vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+		vkCmdEndRenderPass(commandBuffer);
+
+		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to record command buffer!");
+		}
 	}
 
 	void FirstApp::createSyncObjects()
@@ -971,24 +979,12 @@ namespace lve {
 	void FirstApp::drawFrame()
 	{
 		vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-		vkResetFences(device, 1, &inFlightFences[currentFrame]);
+		
 		//从交换链获取图像
 		uint32_t imageIndex;
 		VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX,
 			imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-
-		//if (result == VK_ERROR_OUT_OF_DATE_KHR
-		//	|| result != VK_SUBOPTIMAL_KHR || framebufferResized)
-		//{
-		//	framebufferResized = false;
-		//	recreateSwapChain();
-		//	//return;
-		//}
-		//else if (result != VK_SUCCESS)
-		//{
-		//	throw std::runtime_error("failed to acquire swap chain image!");
-		//}
-
+		
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 			recreateSwapChain();
 			return;
@@ -996,7 +992,14 @@ namespace lve {
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
+
 		updateUniformBuffer(imageIndex);
+
+		vkResetFences(device, 1, &inFlightFences[currentFrame]);
+
+		vkResetCommandBuffer(commandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+		recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+
 		//提交指令缓冲
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
