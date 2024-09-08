@@ -11,14 +11,10 @@ namespace fs = std::filesystem;
 namespace lve {
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
-	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
-		const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-		const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback)
-	{
+	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 		auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-		if (func != nullptr)
-		{
-			return func(instance, pCreateInfo, pAllocator, pCallback);
+		if (func != nullptr) {
+			return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
 		}
 		else {
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
@@ -32,6 +28,23 @@ namespace lve {
 		}
 	}
 
+	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+		auto app = reinterpret_cast<FirstApp*>(glfwGetWindowUserPointer(window));
+
+		app->framebufferResized = true;
+	}
+
+	void FirstApp::initWindow()
+	{
+		glfwInit();
+
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+		glfwSetWindowUserPointer(window, this);
+		glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+	}
+	
 
 	void FirstApp::run()
 	{
@@ -61,22 +74,7 @@ namespace lve {
 		createCommandBuffers();
 		createSyncObjects();
 	}
-	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-		//auto app = reinterpret_cast<FirstApp*>(glfwGetWindowUserPointer(window));
-		//auto app2 = reinterpret_cast<LveWindow*>(glfwGetWindowUserPointer(window));
-		//app->framebufferResized = true;
-	}
-	void FirstApp::initWindow()
-	{
-		glfwInit();
-
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-		glfwSetWindowUserPointer(window, this);
-		glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-	}
-
+	
 	void FirstApp::mainLoop()
 	{
 		while (!glfwWindowShouldClose(window)) {
@@ -97,6 +95,7 @@ namespace lve {
 		appInfo.pApplicationName = "Hello Triangle";
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.pEngineName = "No Engine";
+		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.apiVersion = VK_API_VERSION_1_3;
 
 		VkInstanceCreateInfo createInfo = {};
@@ -118,8 +117,6 @@ namespace lve {
 			createInfo.enabledLayerCount = 0;
 		}
 
-
-
 		VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
 		if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to create instance!");
@@ -134,7 +131,6 @@ namespace lve {
 			{
 				std::cout << std::string("\t") << extension.extensionName << std::endl;
 			}*/
-
 	}
 
 	void FirstApp::pickPhysicalDevice()
@@ -165,10 +161,10 @@ namespace lve {
 		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-		std::set<int> uniqueQueueFamilies = { indices.graphicsFamily,indices.presentFamily };
+		std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(),indices.presentFamily.value()};
 
 		float queueProiority = 1.0f;
-		for (int queueFamily : uniqueQueueFamilies) {
+		for (uint32_t queueFamily : uniqueQueueFamilies) {
 			VkDeviceQueueCreateInfo  queueCreateInfo{};
 
 			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -178,8 +174,7 @@ namespace lve {
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
 
-
-		VkPhysicalDeviceFeatures deviceFeatures = {};
+		VkPhysicalDeviceFeatures deviceFeatures{};
 
 		VkDeviceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -202,9 +197,8 @@ namespace lve {
 		{
 			throw std::runtime_error("failed to create logical device!");
 		}
-		vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
-		vkGetDeviceQueue(device, indices.presentFamily, 0, &presentQueue);
-
+		vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+		vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 	}
 
 	void FirstApp::createSurface()
@@ -223,12 +217,12 @@ namespace lve {
 		VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
 		VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-		uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+		uint32_t imageCount = swapChainSupport.capabilities.minImageCount;// +1;
 		if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
 			imageCount = swapChainSupport.capabilities.maxImageCount;
 		}
 
-		VkSwapchainCreateInfoKHR createInfo = {};
+		VkSwapchainCreateInfoKHR createInfo {};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		createInfo.surface = surface;
 
@@ -240,7 +234,7 @@ namespace lve {
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-		uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphicsFamily,(uint32_t)indices.presentFamily };
+		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value()};
 
 		if (indices.graphicsFamily != indices.presentFamily) {
 			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -339,124 +333,6 @@ namespace lve {
 			fragShaderModule = createShaderModule(fragShaderCode);
 		}
 
-		//VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-		//vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		//vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		//vertShaderStageInfo.module = vertShaderModule;
-		//vertShaderStageInfo.pName = "main";
-
-		//VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
-		//fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		//fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		//fragShaderStageInfo.module = fragShaderModule;
-		//fragShaderStageInfo.pName = "main";
-
-		//VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo,fragShaderStageInfo };
-
-		////dingdian shuru 
-		//VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
-		//vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		//vertexInputInfo.vertexBindingDescriptionCount = 0;
-		//vertexInputInfo.pVertexBindingDescriptions = nullptr;
-		//vertexInputInfo.vertexAttributeDescriptionCount = 0;
-		//vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-
-		////输入装配
-		//VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-		//inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-		//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-		//inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-
-
-		////光栅化
-		//VkPipelineRasterizationStateCreateInfo rasterizer = {};
-		//rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-		//rasterizer.depthClampEnable = VK_FALSE;
-		//rasterizer.rasterizerDiscardEnable = VK_FALSE;
-		//rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-		//rasterizer.lineWidth = 1.0f;
-		//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-		//rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-		//rasterizer.depthBiasEnable = VK_FALSE;
-		//rasterizer.depthBiasConstantFactor = .0f;
-		//rasterizer.depthBiasClamp = .0f;
-		//rasterizer.depthBiasSlopeFactor = .0f;
-		////多重采样
-		//VkPipelineMultisampleStateCreateInfo multisampling{};
-		//multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-		//multisampling.sampleShadingEnable = VK_FALSE;
-		//multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-		////颜色混合
-		//VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-		//colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		//colorBlendAttachment.blendEnable = VK_FALSE;
-		//colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-		//colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-		//colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
-		//colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-		//colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-		//colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
-
-		//VkPipelineColorBlendStateCreateInfo colorBlending{};
-		//colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		//colorBlending.logicOpEnable = VK_FALSE;
-		//colorBlending.logicOp = VK_LOGIC_OP_COPY;
-		//colorBlending.attachmentCount = 1;
-		//colorBlending.pAttachments = &colorBlendAttachment;
-		//colorBlending.blendConstants[0] = 0.0f;
-		//colorBlending.blendConstants[1] = 0.0f;
-		//colorBlending.blendConstants[2] = 0.0f;
-		//colorBlending.blendConstants[3] = 0.0f;
-
-		////动态状态
-		//VkDynamicState dynamicStates[] = {
-		//	VK_DYNAMIC_STATE_VIEWPORT,
-		//	VK_DYNAMIC_STATE_LINE_WIDTH
-		//};
-		//VkPipelineDynamicStateCreateInfo dynamicState = {};
-		//dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-		//dynamicState.dynamicStateCount = 2;
-		//dynamicState.pDynamicStates = dynamicStates;
-
-		////管线布局
-		//VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-		//pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		//pipelineLayoutInfo.setLayoutCount = 0;
-		//pipelineLayoutInfo.pushConstantRangeCount = 0;
-
-		//if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-		//	throw std::runtime_error("failed to create pipeline layout!");
-		//}
-
-		//vkDestroyShaderModule(device, fragShaderModule, nullptr);
-		//vkDestroyShaderModule(device, vertShaderModule, nullptr);
-
-		//VkGraphicsPipelineCreateInfo pipelineInfo = { };
-		//pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		//pipelineInfo.stageCount = 2;
-		//pipelineInfo.pStages = shaderStages;
-
-		//pipelineInfo.pVertexInputState = &vertexInputInfo;
-		//pipelineInfo.pInputAssemblyState = &inputAssembly;
-		//pipelineInfo.pViewportState = &viewportState;
-		//pipelineInfo.pRasterizationState = &rasterizer;
-		//pipelineInfo.pMultisampleState = &multisampling;
-		////pipelineInfo.pDepthStencilState = nullptr;//Optional
-		//pipelineInfo.pColorBlendState = &colorBlending;
-		//pipelineInfo.pDynamicState = &dynamicState;
-
-		//pipelineInfo.layout = pipelineLayout;
-		//pipelineInfo.renderPass = renderPass;
-		//pipelineInfo.subpass = 0;
-
-		//pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;//Optional
-		//pipelineInfo.basePipelineIndex = -1;//Optional
-
-		//if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
-		//{
-		//	throw std::runtime_error("failed to create graphics pipeline!");
-		//}
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -469,13 +345,15 @@ namespace lve {
 		fragShaderStageInfo.module = fragShaderModule;
 		fragShaderStageInfo.pName = "main";
 
+
+		//顶点输入
 		VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
 		auto bindingDescription = Vertex::getBindingDescription();
-		auto attributeDescriptions = Vertex::getAttributeDescription();
+		auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
 		vertexInputInfo.vertexBindingDescriptionCount = 1;
 		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
@@ -486,26 +364,6 @@ namespace lve {
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-		////视口与裁剪
-		//VkViewport viewport = {};
-		//viewport.x = 0.0f;
-		//viewport.y = 0.0f;
-		//viewport.width = (float)swapChainExtent.width;
-		//viewport.height = (float)swapChainExtent.height;
-		//viewport.minDepth = 0.0f;
-		//viewport.maxDepth = 1.0f;
-
-		//VkRect2D scissor = {};
-		//scissor.offset = { 0,0 };
-		//scissor.extent = swapChainExtent;
-
-		//VkPipelineViewportStateCreateInfo viewportState = {};
-		//viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-		//viewportState.viewportCount = 1;
-		//viewportState.pViewports = &viewport;
-		//viewportState.scissorCount = 1;
-		//viewportState.pScissors = &scissor;
 
 		VkPipelineViewportStateCreateInfo viewportState{};
 		viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -555,7 +413,6 @@ namespace lve {
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutInfo.setLayoutCount = 1;
 		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-		//pipelineLayoutInfo.pushConstantRangeCount = 0;
 
 		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
@@ -602,44 +459,43 @@ namespace lve {
 
 	void FirstApp::createRenderPass()
 	{
-		VkAttachmentDescription colorAttachment = {};
+		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = swapChainImageFormat;
 		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
 		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-		VkAttachmentReference colorAttachmentRef = {};
+		VkAttachmentReference colorAttachmentRef{};
 		colorAttachmentRef.attachment = 0;
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		VkSubpassDescription subpass = {};
+		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		subpass.colorAttachmentCount = 1;
 		subpass.pColorAttachments = &colorAttachmentRef;
 
-		VkRenderPassCreateInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = 1;
-		renderPassInfo.pAttachments = &colorAttachment;
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-
-		VkSubpassDependency dependency = {};
+		VkSubpassDependency dependency{};
 		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 		dependency.dstSubpass = 0;
 		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		dependency.srcAccessMask = 0;
 		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		VkRenderPassCreateInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassInfo.attachmentCount = 1;
+		renderPassInfo.pAttachments = &colorAttachment;
+		renderPassInfo.subpassCount = 1;
+		renderPassInfo.pSubpasses = &subpass;
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
-		if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
-		{
+
+		if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 	}
@@ -674,7 +530,7 @@ namespace lve {
 		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 		VkCommandPoolCreateInfo poolInfo = {};
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
 		if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
@@ -745,13 +601,14 @@ namespace lve {
 
 	void FirstApp::createDescriptorSetLayout()
 	{
-		VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+		VkDescriptorSetLayoutBinding uboLayoutBinding{};
 		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		uboLayoutBinding.descriptorCount = 1;
+		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uboLayoutBinding.pImmutableSamplers = nullptr;
 		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-		VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = 1;
 		layoutInfo.pBindings = &uboLayoutBinding;
@@ -775,29 +632,7 @@ namespace lve {
 		throw std::runtime_error("failed to find suitable memory type!");
 
 	}
-	//void FirstApp::createVertexBuffer()
-	//{
-	//	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-	//	VkBuffer stagingBuffer;
-	//	VkDeviceMemory stagingBufferMemory;
-	//	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-	//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-	//		stagingBuffer, stagingBufferMemory);
-
-	//	void* data;
-	//	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	//	memcpy(data, vertices.data(), (size_t)bufferSize);
-	//	vkUnmapMemory(device, stagingBufferMemory);
-
-	//	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-	//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-	//		vertexBuffer, vertexBufferMemory);
-
-	//	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-	//	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	//	vkFreeMemory(device, stagingBufferMemory, nullptr);
-	//}
 	void FirstApp::createVertexBuffer() {
 		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
@@ -876,21 +711,18 @@ namespace lve {
 
 	void FirstApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 	{
-		VkCommandBufferBeginInfo beginInfo = {};
+		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		//beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-		//beginInfo.pInheritanceInfo = nullptr;//OPTIONAL
-		if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-		{
+
+		if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("failed to begin recording command buffer!");
 		}
 
-		VkRenderPassBeginInfo renderPassInfo = {};
+		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderPassInfo.renderPass = renderPass;
 		renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-
-		renderPassInfo.renderArea.offset = { 0,0 };
+		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = swapChainExtent;
 
 		VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
@@ -898,6 +730,7 @@ namespace lve {
 		renderPassInfo.pClearValues = &clearColor;
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
 		VkViewport viewport{};
@@ -920,9 +753,8 @@ namespace lve {
 
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-		//vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
-		//vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
 		vkCmdEndRenderPass(commandBuffer);
 
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -1066,7 +898,7 @@ namespace lve {
 		cleanupSwapChain();
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
-		for (size_t i = 0; i < swapChainImages.size(); i++) {
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 			vkDestroyBuffer(device, uniformBuffers[i], nullptr);
 			vkFreeMemory(device, uniformBufferMemory[i], nullptr);
 		}
