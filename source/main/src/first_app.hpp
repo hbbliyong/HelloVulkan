@@ -190,7 +190,7 @@ namespace lve {
 	private:
 		VkInstance instance;
 		GLFWwindow* window;
-		VkDebugUtilsMessengerEXT callback;
+		VkDebugUtilsMessengerEXT debugMessenger;
 		VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 		VkDevice device;
 		VkQueue graphicsQueue;
@@ -218,7 +218,7 @@ namespace lve {
 		VkDeviceMemory indexBufferMemory;
 
 		std::vector<VkBuffer> uniformBuffers;
-		std::vector<VkDeviceMemory> uniformBufferMemory;
+		std::vector<VkDeviceMemory> uniformBuffersMemory;
 		std::vector<void*> uniformBuffersMapped;
 	};
 }
