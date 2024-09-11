@@ -166,6 +166,8 @@ namespace lve {
 		void createIndexBuffer();
 		void createUniformBuffer();
 		void createCommandBuffers();
+		void createDescriptorPool();
+		void createDescriptorSets();
 		void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 		void createSyncObjects();
 		void updateUniformBuffer(uint32_t currentImage);
@@ -216,7 +218,8 @@ namespace lve {
 		VkDeviceMemory vertexBufferMemory;
 		VkBuffer indexBuffer;
 		VkDeviceMemory indexBufferMemory;
-
+		VkDescriptorPool descriptorPool;
+		std::vector<VkDescriptorSet> descriptorSets;
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<VkDeviceMemory> uniformBuffersMemory;
 		std::vector<void*> uniformBuffersMapped;
