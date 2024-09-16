@@ -137,7 +137,6 @@ namespace lve {
 		void run();
 
 	private:
-
 		void initVulkan();
 		void initWindow();
 		void mainLoop();
@@ -167,6 +166,7 @@ namespace lve {
 		void createUniformBuffer();
 		void createCommandBuffers();
 		void createDescriptorPool();
+		void createTextureImage();
 		void createDescriptorSets();
 		void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 		void createSyncObjects();
@@ -186,7 +186,19 @@ namespace lve {
 		VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> availablePresentModes);
 		VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags porperties);
+		void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+	private:
+		VkCommandBuffer beginSingleTimeCommands();
+		void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
+		/// <summary>
+		/// 用于图像布局变换
+		/// </summary>
+		/// <param name="availableFormats"></param>
+		/// <returns></returns>
+		void transitionImageLayout(VkImage image, VkFormat format,
+			VkImageLayout oldLayout, VkImageLayout newLayout);
+		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	public:
 		bool framebufferResized = false;
 	private:
@@ -223,5 +235,7 @@ namespace lve {
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<VkDeviceMemory> uniformBuffersMemory;
 		std::vector<void*> uniformBuffersMapped;
+		VkImage textureImage;
+		VkDeviceMemory textureImageMemory;
 	};
 }
