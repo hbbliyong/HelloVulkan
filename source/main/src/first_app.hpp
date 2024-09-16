@@ -76,6 +76,7 @@ namespace lve {
 	struct Vertex {
 		glm::vec2 pos;
 		glm::vec3 color;
+		glm::vec2 texCoord;
 
 		static VkVertexInputBindingDescription getBindingDescription() {
 			VkVertexInputBindingDescription bindingDescription{};
@@ -86,8 +87,8 @@ namespace lve {
 			return bindingDescription;
 		}
 
-		static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-			std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+		static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+			std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
@@ -99,6 +100,10 @@ namespace lve {
 			attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 			attributeDescriptions[1].offset = offsetof(Vertex, color);
 
+			attributeDescriptions[2].binding = 0;
+			attributeDescriptions[2].location = 2;
+			attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 			return attributeDescriptions;
 		}
 	};
@@ -119,11 +124,17 @@ namespace lve {
 		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
 	};*/
+	//const std::vector<Vertex> vertices = {
+	//{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+	//{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+	//{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+	//{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+	//};
 	const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 	};
 
 	const std::vector<uint16_t> indices = {
@@ -167,6 +178,10 @@ namespace lve {
 		void createCommandBuffers();
 		void createDescriptorPool();
 		void createTextureImage();
+		void createTextureImageView();
+		VkImageView createImageView(VkImage image, VkFormat format);
+		void createTextureSampler();
+
 		void createDescriptorSets();
 		void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 		void createSyncObjects();
@@ -190,12 +205,6 @@ namespace lve {
 	private:
 		VkCommandBuffer beginSingleTimeCommands();
 		void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-
-		/// <summary>
-		/// 用于图像布局变换
-		/// </summary>
-		/// <param name="availableFormats"></param>
-		/// <returns></returns>
 		void transitionImageLayout(VkImage image, VkFormat format,
 			VkImageLayout oldLayout, VkImageLayout newLayout);
 		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
@@ -237,5 +246,7 @@ namespace lve {
 		std::vector<void*> uniformBuffersMapped;
 		VkImage textureImage;
 		VkDeviceMemory textureImageMemory;
+		VkImageView textureImageView;
+		VkSampler textureSampler;
 	};
 }

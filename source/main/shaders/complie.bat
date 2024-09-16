@@ -2,6 +2,6 @@
 glslangValidator.exe -V shader.vert
 glslangValidator.exe -V shader.frag
 
-copy *.spv  ../../../bin/debug/shaders
-copy  ./../textures/*.*  ../../../bin/debug/textures
+::copy *.spv  ../../../bin/debug/shaders
+::copy  ./../textures/*.*  ../../../bin/debug/textures
 pause
