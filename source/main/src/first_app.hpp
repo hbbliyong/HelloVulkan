@@ -74,7 +74,7 @@ namespace lve {
 	};
 
 	struct Vertex {
-		glm::vec2 pos;
+		glm::vec3 pos;
 		glm::vec3 color;
 		glm::vec2 texCoord;
 
@@ -92,7 +92,7 @@ namespace lve {
 
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
-			attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 			attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
 			attributeDescriptions[1].binding = 0;
@@ -130,15 +130,26 @@ namespace lve {
 	//{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
 	//{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
 	//};
+	//const std::vector<Vertex> vertices = {
+	//{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+	//{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+	//{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+	//{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+	//};
 	const std::vector<Vertex> vertices = {
-	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-	};
+{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
 
+{ { -0.5f, -0.5f, -0.5f }, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f} },
+{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+	};
 	const std::vector<uint16_t> indices = {
-		0, 1, 2, 2, 3, 0
+		0, 1, 2, 2, 3, 0,
+		4, 5, 6, 6, 7, 4
 	};
 
 
@@ -163,6 +174,7 @@ namespace lve {
 		void createRenderPass();
 		void createFramebuffers();
 		void createCommandPool();
+		void createDepthResources();
 		void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags propertices, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		/// <summary>
 		/// 缓冲之间复制对象
@@ -174,12 +186,12 @@ namespace lve {
 		void createDescriptorSetLayout();
 		void createVertexBuffer();
 		void createIndexBuffer();
-		void createUniformBuffer();
+		void createUniformBuffers();
 		void createCommandBuffers();
 		void createDescriptorPool();
 		void createTextureImage();
 		void createTextureImageView();
-		VkImageView createImageView(VkImage image, VkFormat format);
+		VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 		void createTextureSampler();
 
 		void createDescriptorSets();
@@ -191,7 +203,7 @@ namespace lve {
 		void cleanup();
 
 		bool checkValidationLayerSupport();
-		void setupDebugCallback();
+		void setupDebugMessenger();
 		std::vector<const char*> getRequiredExtensions();
 		bool isDeviceSuitable(VkPhysicalDevice device);
 		QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
@@ -208,6 +220,16 @@ namespace lve {
 		void transitionImageLayout(VkImage image, VkFormat format,
 			VkImageLayout oldLayout, VkImageLayout newLayout);
 		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+		VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+		VkFormat findDepthFormat() {
+			return findSupportedFormat({ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+		}
+
+
+		bool hasStencilComponent(VkFormat format) {
+			return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+		}
+
 	public:
 		bool framebufferResized = false;
 	private:
@@ -248,5 +270,9 @@ namespace lve {
 		VkDeviceMemory textureImageMemory;
 		VkImageView textureImageView;
 		VkSampler textureSampler;
+		VkImage depthImage;
+		VkDeviceMemory depthImageMemory;
+		VkImageView depthImageView;
+
 	};
 }
