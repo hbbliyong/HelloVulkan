@@ -3,13 +3,19 @@
 #include <algorithm>
 #include <filesystem>
 #include <chrono>
+#include <unordered_map>
 
+#include <glm/glm.hpp>
 #define GLM_FORCE_RADIANS
 //默认情况下，GLM库的透视投影矩阵使用OpenGL的深度值范围(-1.0，1.0)。我们需要定义GLM_FORCE_DEPTH_ZERO_TO_ONE宏来让它使用Vulkan的深度值范围(0.0，1.0)。
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
 namespace fs = std::filesystem;
 namespace lve {
 	const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -74,6 +80,7 @@ namespace lve {
 		createTextureImage();
 		createTextureImageView();
 		createTextureSampler();
+		loadModel();
 		createVertexBuffer();
 		createIndexBuffer();
 		createUniformBuffers();
@@ -516,9 +523,9 @@ namespace lve {
 		swapChainFramebuffers.resize(swapChainImageViews.size());
 
 		for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-		std::array<	VkImageView,2> attachments = {
-				swapChainImageViews[i],
-				depthImageView
+			std::array<	VkImageView, 2> attachments = {
+					swapChainImageViews[i],
+					depthImageView
 			};
 
 			VkFramebufferCreateInfo framebufferInfo{};
@@ -611,8 +618,53 @@ namespace lve {
 
 		vkBindImageMemory(device, image, imageMemory, 0);
 	}
+	void FirstApp::loadModel()
+	{
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string err;
+
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, &err, MODEL_PATH.c_str()))
+		{
+			throw std::runtime_error(err);
+		}
+		std::unordered_map<Vertex, uint32_t> uniqueVertices = {};
+
+		for (const auto& shape : shapes)
+		{
+			for (const auto& index : shape.mesh.indices)
+			{
+				Vertex vertex{};
+
+				vertex.pos = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					attrib.vertices[3 * index.vertex_index + 1],
+					attrib.vertices[3 * index.vertex_index + 2],
+				};
+				/*	vertex.texCoord = {
+						attrib.texcoords[2 * index.texcoord_index + 0],
+						attrib.texcoords[2 * index.texcoord_index + 1]
+					};*/
+				vertex.texCoord = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+				};
+				vertex.color = { 1.0f, 1.0f, 1.0f };
+
+				if (uniqueVertices.count(vertex) == 0)
+				{
+					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+					vertices.push_back(vertex);
+				}
+
+				indices.push_back(uniqueVertices[vertex]);
+			}
+		}
+	}
+
 	void FirstApp::createDescriptorPool() {
-	std::array<	VkDescriptorPoolSize,2> poolSizes{};
+		std::array<	VkDescriptorPoolSize, 2> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -632,7 +684,9 @@ namespace lve {
 	void FirstApp::createTextureImage()
 	{
 		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		//stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
 		//stbi_uc* pixels = stbi_load("F:/002workcode/HelloVulkan/Bin/Debug/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		//像素安装行的方式存储，每个像素需要四个字节存储
 		VkDeviceSize imageSize = texWidth * texHeight * 4;
@@ -664,7 +718,6 @@ namespace lve {
 	{
 		textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
-
 
 	void FirstApp::createTextureSampler()
 	{
@@ -699,7 +752,7 @@ namespace lve {
 	}
 
 	VkImageView FirstApp::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
-	{	
+	{
 		VkImageViewCreateInfo viewInfo{};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = image;
@@ -744,7 +797,7 @@ namespace lve {
 			imageInfo.imageView = textureImageView;
 			imageInfo.sampler = textureSampler;
 
-			std::array<VkWriteDescriptorSet,2> descriptorWrites{};
+			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[0].dstSet = descriptorSets[i];
 			descriptorWrites[0].dstBinding = 0;
@@ -752,7 +805,7 @@ namespace lve {
 			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			descriptorWrites[0].descriptorCount = 1;
 			descriptorWrites[0].pBufferInfo = &bufferInfo;
-			
+
 			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[1].dstSet = descriptorSets[i];
 			descriptorWrites[1].dstBinding = 1;
@@ -882,10 +935,9 @@ namespace lve {
 	void FirstApp::createDepthResources()
 	{
 		VkFormat depthFormat = findDepthFormat();
-		
-		createImage(swapChainExtent.width,swapChainExtent.height,depthFormat,  VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+
+		createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
 		depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-		transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	}
 
 	void FirstApp::createIndexBuffer()
@@ -984,7 +1036,7 @@ namespace lve {
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
