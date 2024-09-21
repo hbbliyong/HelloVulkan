@@ -214,7 +214,7 @@ namespace lve {
 		void createDescriptorPool();
 		void createTextureImage();
 		void createTextureImageView();
-		VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+		VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,  uint32_t mipLevels);
 		void createTextureSampler();
 
 		void createDescriptorSets();
@@ -236,12 +236,12 @@ namespace lve {
 		VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> availablePresentModes);
 		VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags porperties);
-		void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+		void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 	private:
 		VkCommandBuffer beginSingleTimeCommands();
 		void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 		void transitionImageLayout(VkImage image, VkFormat format,
-			VkImageLayout oldLayout, VkImageLayout newLayout);
+			VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
 		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 		VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 		VkFormat findDepthFormat() {
@@ -252,7 +252,7 @@ namespace lve {
 		bool hasStencilComponent(VkFormat format) {
 			return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 		}
-
+		void generateMipmaps(VkImage iamge,VkFormat imageFormat, int32_t texWidth,int32_t texHeight,uint32_t mipLevel);
 	public:
 		bool framebufferResized = false;
 	private:
@@ -289,6 +289,7 @@ namespace lve {
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<VkDeviceMemory> uniformBuffersMemory;
 		std::vector<void*> uniformBuffersMapped;
+		uint32_t mipLevels;
 		VkImage textureImage;
 		VkDeviceMemory textureImageMemory;
 		VkImageView textureImageView;
@@ -299,5 +300,6 @@ namespace lve {
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
 	
+		
 	};
 }
