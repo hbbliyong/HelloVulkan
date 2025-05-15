@@ -67,11 +67,15 @@ target_include_directories(
 
 
 find_package(Vulkan REQUIRED)
-find_package(glfw3  CONFIG REQUIRED)
-
+if (Vulkan_FOUND)
+    message(STATUS "Vulkan SDK found at ${Vulkan_INCLUDE_DIRS}")
+else()
+    message(FATAL_ERROR "Vulkan SDK not found")
+endif()
 
 target_link_libraries(${LIBRARY_TARGET_NAME}
     PRIVATE glfw
+    PRIVATE glm
     PRIVATE Vulkan::Vulkan
 )
 
